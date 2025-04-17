@@ -7,10 +7,10 @@ const authRouter = require("./routes/authRoute");
 const app = express();
 
 // CORS setup: Replace this with your actual frontend Render URL
-app.use(cors({
-  origin: "https://your-frontend.onrender.com",
-  credentials: true
-}));
+// app.use(cors({
+//   origin: "https://your-frontend.onrender.com",
+//   credentials: true
+// }));
 
 app.use(express.json());
 
