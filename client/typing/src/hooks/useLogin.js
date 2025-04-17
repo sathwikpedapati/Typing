@@ -12,25 +12,29 @@ const useLogin = () => {
       setError(null);
       setLoading(true);
 
-      const res = await fetch("http://localhost:5000/api/auth/login", {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(values),
       });
+
       const contentType = res.headers.get("content-type");
-      let data;
+      let data = null;
+
+      // Check if the response is not empty and contains JSON
       if (contentType && contentType.includes("application/json")) {
         data = await res.json();
-      } else {
+      } else if (res.status !== 204) { // Handle case where the server might send no content
         const text = await res.text();
-        throw new Error(`Invalid response: Received HTML instead of JSON. Response: ${text.substring(0, 50)}...`);
+        throw new Error(`Invalid response: Received non-JSON response. Response: ${text.substring(0, 50)}...`);
       }
+
       console.log("Server response:", { status: res.status, data });
 
       if (res.status === 200) {
-        message.success(data.message || "Login successful!");
+        message.success(data?.message || "Login successful!");
         login(data.token, data.user);
       } else if (res.status === 400 || res.status === 401) {
         setError(data?.message || "Invalid email or password.");
@@ -56,4 +60,3 @@ const useLogin = () => {
 };
 
 export default useLogin;
-

@@ -1,33 +1,49 @@
 const User = require('../models/userModel');
 const bcrypt = require('bcryptjs');
-const jwtoken = require('jsonwebtoken');
-const createError = require('../utils/appError'); 
+const jwt = require('jsonwebtoken');
+const createError = require('../utils/appError');
 
+// ========== SIGNUP ==========
 exports.signup = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    console.log('JWT_SECRET from env:', process.env.JWT_SECRET); // Debug log
+    console.log('Request Body:', req.body);
 
-    if (!name || !email || !password) {
+    const { name, email, password, confirmPassword } = req.body;
+    const trimmedName = name?.trim();
+    const trimmedEmail = email?.trim();
+    const trimmedPassword = password?.trim();
+    const trimmedConfirmPassword = confirmPassword?.trim();
+
+    if (!trimmedName || !trimmedEmail || !trimmedPassword || !trimmedConfirmPassword) {
       return next(new createError("All fields are required", 400));
     }
 
-    const user = await User.findOne({ email });
-    if (user) {
-      return next(new createError("User already exists", 400));
+    if (trimmedPassword !== trimmedConfirmPassword) {
+      return next(new createError("Passwords do not match", 400));
     }
 
-    const hashpassword = await bcrypt.hash(password, 12);
+    const existingUser = await User.findOne({ email: trimmedEmail });
+    if (existingUser) {
+      return next(new createError("Email already exists", 400));
+    }
+
+    const hashedPassword = await bcrypt.hash(trimmedPassword, 12);
+
     const newUser = await User.create({
-      name,
-      email,
-      password: hashpassword,
+      name: trimmedName,
+      email: trimmedEmail,
+      password: hashedPassword,
     });
 
-    const token = jwtoken.sign({ _id: newUser._id }, "secretkey123", {
+    if (!process.env.JWT_SECRET) {
+      return next(new createError("JWT secret key is not configured", 500));
+    }
+
+    const token = jwt.sign({ _id: newUser._id }, process.env.JWT_SECRET, {
       expiresIn: "90d",
     });
 
-    // Return both token and user data
     res.status(201).json({
       status: "success",
       message: "User registered successfully",
@@ -36,23 +52,21 @@ exports.signup = async (req, res, next) => {
         _id: newUser._id,
         name: newUser.name,
         email: newUser.email,
-        role: newUser.role, // If you have a role, return it
+        role: newUser.role || 'user',
       },
     });
-
   } catch (err) {
-    console.error("Signup error:", err);
-
     if (err.code === 11000 && err.keyPattern?.email) {
       return next(new createError("Email already exists", 400));
     }
-
-    next(err); 
+    next(err);
   }
 };
 
+// ========== LOGIN ==========
 exports.login = async (req, res, next) => {
   try {
+    console.log('JWT_SECRET from env:', process.env.JWT_SECRET); // Debug log
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
@@ -62,7 +76,11 @@ exports.login = async (req, res, next) => {
       return next(new createError("Invalid email or password", 401));
     }
 
-    const token = jwtoken.sign({ _id: user._id }, "secretkey123", {
+    if (!process.env.JWT_SECRET) {
+      return next(new createError("JWT secret key is not configured", 500));
+    }
+
+    const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "90d",
     });
 
@@ -74,7 +92,7 @@ exports.login = async (req, res, next) => {
         _id: user._id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        role: user.role || 'user',
       },
     });
   } catch (err) {
