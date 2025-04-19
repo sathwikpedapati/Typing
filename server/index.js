@@ -1,15 +1,19 @@
 require("dotenv").config();
 const express = require("express");
-const cors = require("cors");
 const mongoose = require("mongoose");
 const authRouter = require("./routes/authRoute");
 
 const app = express();
 
-app.use(cors({
-  origin: 'https://typing-speed-frontend-hsxu.onrender.com',
+const cors = require('cors');
+
+const corsOptions = {
+  origin: 'https://typing-ebon.vercel.app',
   credentials: true,
-}));
+};
+
+app.use(cors(corsOptions));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
